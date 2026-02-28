@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     CLAUDE_PATH_HOST: str = ""
     CLAUDE_PATH_CONTAINER: str = ""
 
+    # Git repo override: eğer set edilirse session project_root yerine
+    # bu path kullanılır (ör. /Users/burak/ai-consul)
+    GIT_REPO_OVERRIDE_PATH: str = ""
+
+    # Ollama health check URL (boş ise kontrol yapılmaz)
+    OLLAMA_HEALTH_URL: str = ""
+
     model_config = SettingsConfigDict(env_file=".env")
 
     def translate_path(self, path: str) -> str:

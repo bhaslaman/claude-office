@@ -87,6 +87,7 @@ export default function V2TestPage(): React.ReactNode {
   const [aiSummaryEnabled, setAiSummaryEnabled] = useState<boolean | null>(
     null,
   );
+  const [ollamaEnabled, setOllamaEnabled] = useState<boolean | null>(null);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -94,12 +95,23 @@ export default function V2TestPage(): React.ReactNode {
   // Connect to WebSocket with new hook
   useWebSocketEvents({ sessionId });
 
-  // Fetch server status (AI summary enabled)
+  // Fetch server status (AI summary + Ollama enabled) — her 15 saniyede refresh
   useEffect(() => {
-    fetch("http://localhost:8000/api/v1/status")
-      .then((res) => res.json())
-      .then((data) => setAiSummaryEnabled(data.aiSummaryEnabled))
-      .catch(() => setAiSummaryEnabled(false));
+    const fetchStatus = () => {
+      fetch("http://localhost:8000/api/v1/status")
+        .then((res) => res.json())
+        .then((data) => {
+          setAiSummaryEnabled(data.aiSummaryEnabled ?? false);
+          setOllamaEnabled(data.ollamaEnabled ?? false);
+        })
+        .catch(() => {
+          setAiSummaryEnabled(false);
+          setOllamaEnabled(false);
+        });
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   // Store selectors
@@ -600,10 +612,20 @@ export default function V2TestPage(): React.ReactNode {
                 </div>
                 <div
                   className={`flex items-center gap-1.5 font-mono text-xs ${
+                    ollamaEnabled ? "text-orange-400" : "text-slate-500"
+                  }`}
+                  title={ollamaEnabled ? "Ollama çalışıyor" : "Ollama erişilemiyor"}
+                >
+                  <span className="text-[10px]">OLLAMA</span>
+                  {ollamaEnabled ? "ON" : "OFF"}
+                </div>
+                <div
+                  className={`flex items-center gap-1.5 font-mono text-xs ${
                     aiSummaryEnabled ? "text-violet-400" : "text-slate-500"
                   }`}
+                  title={aiSummaryEnabled ? "Claude AI özetler aktif" : "Claude AI özetler kapalı"}
                 >
-                  <span className="text-[10px]">AI</span>
+                  <span className="text-[10px]">CLAUDE</span>
                   {aiSummaryEnabled ? "ON" : "OFF"}
                 </div>
               </div>

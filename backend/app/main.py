@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -71,11 +72,24 @@ async def health_check() -> dict[str, str]:
 
 @app.get("/api/v1/status")
 async def get_status() -> dict[str, bool | str | None]:
-    """Get server status including AI summary availability."""
+    """Get server status including AI summary and Ollama availability."""
     summary_service = get_summary_service()
+
+    ollama_ok = False
+    ollama_url = settings.OLLAMA_HEALTH_URL
+    if ollama_url:
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.get(ollama_url)
+                ollama_ok = resp.status_code == 200
+        except Exception:
+            ollama_ok = False
+
     return {
         "aiSummaryEnabled": summary_service.enabled,
         "aiSummaryModel": summary_service.model if summary_service.enabled else None,
+        "ollamaEnabled": ollama_ok,
+        "ollamaUrl": ollama_url or None,
     }
 
 

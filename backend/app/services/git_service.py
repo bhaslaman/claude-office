@@ -117,7 +117,9 @@ class GitService:
 
     def get_status(self, repo_path: str | Path | None = None) -> GitStatus | None:
         """Get current git status synchronously."""
-        path_str = repo_path or self._project_root
+        settings = get_settings()
+        # Override path: session project_root yerine sabit bir repo kullan
+        path_str = repo_path or settings.GIT_REPO_OVERRIDE_PATH or self._project_root
         if not path_str:
             logger.debug("No git repository path configured")
             return None
