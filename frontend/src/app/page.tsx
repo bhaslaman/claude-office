@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { GitStatusPanel } from "@/components/game/GitStatusPanel";
 import { EventLog } from "@/components/game/EventLog";
+import { OllamaTerminal } from "@/components/game/OllamaTerminal";
 import { AgentStatus } from "@/components/game/AgentStatus";
 import { agentMachineService } from "@/machines/agentMachineService";
 import { formatDistanceToNow } from "date-fns";
@@ -89,6 +90,7 @@ export default function V2TestPage(): React.ReactNode {
   );
   const [ollamaEnabled, setOllamaEnabled] = useState<boolean | null>(null);
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  const [activeRightTab, setActiveRightTab] = useState<"events" | "ollama">("events");
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -1021,9 +1023,36 @@ export default function V2TestPage(): React.ReactNode {
               <AgentStatus />
             </div>
 
-            {/* Event Log - 60% of available height */}
-            <div className="min-h-0" style={{ flex: "3 1 0" }}>
-              <EventLog />
+            {/* Event Log / Ollama Terminal - 60% of available height */}
+            <div className="min-h-0 flex flex-col" style={{ flex: "3 1 0" }}>
+              {/* Tab bar */}
+              <div className="flex border-b border-slate-800 bg-slate-950 flex-shrink-0">
+                <button
+                  onClick={() => setActiveRightTab("events")}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors border-b-2 ${
+                    activeRightTab === "events"
+                      ? "text-emerald-400 border-emerald-400"
+                      : "text-slate-500 border-transparent hover:text-slate-300"
+                  }`}
+                >
+                  <Activity size={12} />
+                  EVENT LOG
+                </button>
+                <button
+                  onClick={() => setActiveRightTab("ollama")}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold transition-colors border-b-2 ${
+                    activeRightTab === "ollama"
+                      ? "text-orange-400 border-orange-400"
+                      : "text-slate-500 border-transparent hover:text-slate-300"
+                  }`}
+                >
+                  🦙 OLLAMA
+                </button>
+              </div>
+              {/* Tab content */}
+              <div className="flex-grow min-h-0 overflow-hidden">
+                {activeRightTab === "events" ? <EventLog /> : <OllamaTerminal />}
+              </div>
             </div>
           </aside>
         </div>

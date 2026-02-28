@@ -51,3 +51,6 @@ export const BOSS_RUG_POSITION = { x: 640, y: 940 };
 
 /** Trash can offset from boss desk position */
 export const TRASH_CAN_OFFSET = { x: 110, y: 65 };
+
+/** Ollama desk position (right of boss desk, canvas 1280×1024) */
+export const OLLAMA_DESK_POSITION = { x: 960, y: 880 };

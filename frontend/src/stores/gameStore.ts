@@ -219,6 +219,10 @@ interface GameStore {
   setWhiteboardMode: (mode: WhiteboardMode) => void;
   cycleWhiteboardMode: () => void;
 
+  // ========== Ollama State ==========
+  ollamaIsTyping: boolean;
+  setOllamaTyping: (typing: boolean) => void;
+
   // ========== UI State ==========
   isConnected: boolean;
   isReplaying: boolean;
@@ -358,6 +362,9 @@ const initialState = {
   // Whiteboard
   whiteboardData: initialWhiteboardData,
   whiteboardMode: 0 as WhiteboardMode,
+
+  // Ollama
+  ollamaIsTyping: false,
 
   // UI
   isConnected: false,
@@ -921,6 +928,8 @@ export const useGameStore = create<GameStore>()(
     // UI ACTIONS
     // ========================================================================
 
+    setOllamaTyping: (typing) => set({ ollamaIsTyping: typing }),
+
     setConnected: (isConnected) => set({ isConnected }),
     setReplaying: (isReplaying) => set({ isReplaying }),
     setReplaySpeed: (replaySpeed) => set({ replaySpeed }),
@@ -1163,3 +1172,4 @@ export const selectToolUsesSinceCompaction = (state: GameStore) =>
 export const selectPrintReport = (state: GameStore) => state.printReport;
 export const selectWhiteboardData = (state: GameStore) => state.whiteboardData;
 export const selectWhiteboardMode = (state: GameStore) => state.whiteboardMode;
+export const selectOllamaIsTyping = (state: GameStore) => state.ollamaIsTyping;

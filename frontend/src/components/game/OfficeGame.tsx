@@ -38,6 +38,7 @@ import {
   selectContextUtilization,
   selectIsCompacting,
   selectPrintReport,
+  selectOllamaIsTyping,
 } from "@/stores/gameStore";
 import { useAnimationSystem } from "@/systems/animationSystem";
 import { useCompactionAnimation } from "@/systems/compactionAnimation";
@@ -60,7 +61,9 @@ import {
   PLANT_POSITION,
   BOSS_RUG_POSITION,
   TRASH_CAN_OFFSET,
+  OLLAMA_DESK_POSITION,
 } from "@/constants/positions";
+import { OllamaSprite } from "./OllamaSprite";
 import {
   AgentSprite,
   AgentArms,
@@ -140,6 +143,7 @@ export function OfficeGame(): ReactNode {
   const contextUtilization = useGameStore(selectContextUtilization);
   const isCompacting = useGameStore(selectIsCompacting);
   const printReport = useGameStore(selectPrintReport);
+  const ollamaIsTyping = useGameStore(selectOllamaIsTyping);
 
   // Compaction animation state
   const compactionAnimation = useCompactionAnimation();
@@ -468,6 +472,17 @@ export function OfficeGame(): ReactNode {
                     renderBubble={false}
                     isTyping={boss.isTyping}
                     isAway={compactionAnimation.phase !== "idle"}
+                  />
+
+                  {/* Ollama Desk — bottom right, right of boss */}
+                  <OllamaSprite
+                    position={OLLAMA_DESK_POSITION}
+                    isTyping={ollamaIsTyping}
+                    chairTexture={textures.chair}
+                    deskTexture={textures.desk}
+                    keyboardTexture={textures.keyboard}
+                    monitorTexture={textures.monitor}
+                    headsetTexture={textures.headset ?? null}
                   />
 
                   {/* Mobile Boss (when walking to/from trash can) */}
