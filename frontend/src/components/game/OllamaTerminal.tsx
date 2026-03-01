@@ -14,6 +14,7 @@ import { useState, useRef, useEffect, useCallback, type ReactNode } from "react"
 import { Trash2, ChevronDown } from "lucide-react";
 import { useGameStore } from "@/stores/gameStore";
 
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -41,12 +42,40 @@ interface AgentInfo {
   model: string;
   description: string;
   tools: string[];
+  healthy?: boolean;
 }
 
 const REGISTRY_URL = "http://localhost:30810";
-const DEFAULT_AGENT_URL = "http://localhost:30802";
-const DEFAULT_AGENT_NAME = "homelab-agent";
-const SESSION_ID = typeof crypto !== "undefined" ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+const DEFAULT_AGENT_URL = "http://localhost:30814";
+const DEFAULT_AGENT_NAME = "manager-agent";
+
+// Agent isim → tarayıcı erişilebilir NodePort URL mapping
+// Registry'deki cluster-internal URL'ler browser'dan erişilemez
+const AGENT_EXTERNAL_URLS: Record<string, string> = {
+  "manager-agent":        "http://localhost:30814",
+  "devops-agent":         "http://localhost:30802",
+  "coder-agent":          "http://localhost:30803",
+  "noc-agent":            "http://localhost:30804",
+  "product-owner-agent":  "http://localhost:30805",
+  "network-system-agent": "http://localhost:30807",
+  "tester-agent":         "http://localhost:30816",
+  "security-agent":       "http://localhost:30817",
+};
+
+function getExternalUrl(agent: AgentInfo): string {
+  return AGENT_EXTERNAL_URLS[agent.name] ?? agent.url;
+}
+
+// localStorage kalıcı session_id
+const SESSION_ID = (() => {
+  if (typeof window === "undefined") return crypto.randomUUID();
+  const key = "ollama_session_id";
+  const stored = localStorage.getItem(key);
+  if (stored) return stored;
+  const newId = crypto.randomUUID();
+  localStorage.setItem(key, newId);
+  return newId;
+})();
 
 // ============================================================================
 // COMPONENT
@@ -61,13 +90,14 @@ export function OllamaTerminal(): ReactNode {
   const [selectedAgent, setSelectedAgent] = useState<AgentInfo>({
     name: DEFAULT_AGENT_NAME,
     url: DEFAULT_AGENT_URL,
-    model: "qwen2.5:7b",
-    description: "Kubernetes homelab yönetim asistanı",
+    model: "qwen2.5:14b",
+    description: "Ekip orkestratörü — görevi doğru agent'a yönlendirir",
     tools: [],
   });
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const setOllamaTyping = useGameStore((state) => state.setOllamaTyping);
 
   // Auto-scroll to bottom on new messages
@@ -86,14 +116,16 @@ export function OllamaTerminal(): ReactNode {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Fetch agent list from registry
+  // Fetch agent list from registry (server-side health check, no browser→cluster calls)
   const fetchAgents = useCallback(async () => {
     try {
-      const res = await fetch(`${REGISTRY_URL}/agents`);
+      const res = await fetch(`${REGISTRY_URL}/agents/health`);
       if (!res.ok) return;
-      const data = await res.json() as { agents: AgentInfo[] };
+      const data = await res.json() as { agents: (AgentInfo & { healthy: boolean })[] };
       if (data.agents && data.agents.length > 0) {
-        setAgents(data.agents);
+        // Remap cluster-internal URLs to browser-accessible NodePort URLs
+        const mapped = data.agents.map((a) => ({ ...a, url: getExternalUrl(a) }));
+        setAgents(mapped);
       }
     } catch {
       // Registry unavailable — use default agent only
@@ -129,6 +161,7 @@ export function OllamaTerminal(): ReactNode {
     let fullText = "";
 
     try {
+      abortRef.current = new AbortController();
       const res = await fetch(streamUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -136,6 +169,7 @@ export function OllamaTerminal(): ReactNode {
           message: userContent,
           session_id: SESSION_ID,
         }),
+        signal: abortRef.current.signal,
       });
 
       if (!res.ok || !res.body) {
@@ -201,6 +235,13 @@ export function OllamaTerminal(): ReactNode {
         )
       );
     } catch (streamErr) {
+      if (streamErr instanceof DOMException && streamErr.name === "AbortError") {
+        // User cancelled — mark streaming done with whatever we have
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantMsgId ? { ...m, streaming: false } : m))
+        );
+        return;
+      }
       // SSE failed — fallback to normal /chat
       setMessages((prev) => prev.filter((m) => m.id !== assistantMsgId));
       await sendMessageFallback(userContent);
@@ -288,7 +329,7 @@ export function OllamaTerminal(): ReactNode {
 
   // All available agents (default + registry)
   const allAgents: AgentInfo[] = [
-    { name: DEFAULT_AGENT_NAME, url: DEFAULT_AGENT_URL, model: "qwen2.5:7b", description: "Kubernetes homelab yönetim asistanı", tools: [] },
+    { name: DEFAULT_AGENT_NAME, url: DEFAULT_AGENT_URL, model: "qwen2.5:14b", description: "Ekip orkestratörü — görevi doğru agent'a yönlendirir", tools: [] },
     ...agents.filter((a) => a.name !== DEFAULT_AGENT_NAME),
   ];
 
@@ -323,7 +364,10 @@ export function OllamaTerminal(): ReactNode {
                       agent.name === selectedAgent.name ? "bg-orange-950/30 text-orange-300" : "text-slate-300"
                     }`}
                   >
-                    <span className="font-bold">{agent.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${agent.healthy === false ? "bg-red-500" : agent.healthy ? "bg-green-400" : "bg-slate-600"}`} />
+                      <span className="font-bold">{agent.name}</span>
+                    </div>
                     <span className="text-[9px] text-slate-500">{agent.model} · {agent.description.slice(0, 40)}</span>
                   </button>
                 ))}
@@ -339,6 +383,15 @@ export function OllamaTerminal(): ReactNode {
 
           {isLoading && (
             <span className="text-[10px] text-orange-400 animate-pulse flex-shrink-0">● düşünüyor...</span>
+          )}
+          {isLoading && (
+            <button
+              onClick={() => abortRef.current?.abort()}
+              className="text-[10px] text-rose-500 hover:text-rose-400 transition-colors flex-shrink-0 px-1 py-0.5 border border-rose-700/40 rounded"
+              title="Streaming'i iptal et"
+            >
+              ✕ İptal
+            </button>
           )}
         </div>
 
